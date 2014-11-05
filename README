@@ -47,9 +47,9 @@ PREDEFINED BUILTIN DATA TYPES
     regex
         Match a perl regex using the operator qr(). Valid examples include:
 
-         qr/[0-9]+/
-         qr([^%]*)
-         qr{\w+(\d+?)}
+          qr/[0-9]+/
+          qr([^%]*)
+          qr{\w+(\d+?)}
 
         Please note, that this doesn't mean you can provide here a regex
         against config options must match.
@@ -58,9 +58,9 @@ PREDEFINED BUILTIN DATA TYPES
 
         eg:
 
-         <cfg>
-           grp  = qr/root|wheel/
-         </cfg>
+          $cfg = {
+            grp  = qr/root|wheel/
+          };
 
         regex would match the content of the variable 'grp' in this example.
 
@@ -75,11 +75,11 @@ PREDEFINED BUILTIN DATA TYPES
     cidrv4
         The same as above including cidr netmask (/24), IPv4 only, eg:
 
-         10.2.123.0/23
+          10.2.123.0/23
 
         Note: shortcuts are not supported for the moment, eg:
 
-         10.10/16
+          10.10/16
 
         will fail while it is still a valid IPv4 cidr notation for a network
         address (short for 10.10.0.0/16). Must be fixed in Regex::Common.
@@ -87,22 +87,22 @@ PREDEFINED BUILTIN DATA TYPES
     ipv6
         Match an IPv6 address. Some examples:
 
-         3ffe:1900:4545:3:200:f8ff:fe21:67cf
-         fe80:0:0:0:200:f8ff:fe21:67cf
-         fe80::200:f8ff:fe21:67cf
-         ff02:0:0:0:0:0:0:1
-         ff02::1
+          3ffe:1900:4545:3:200:f8ff:fe21:67cf
+          fe80:0:0:0:200:f8ff:fe21:67cf
+          fe80::200:f8ff:fe21:67cf
+          ff02:0:0:0:0:0:0:1
+          ff02::1
 
     cidrv6
         The same as above including cidr netmask (/64), IPv6 only, eg:
 
-         2001:db8:dead:beef::1/64
-         2001:db8::/32
+          2001:db8:dead:beef::1/64
+          2001:db8::/32
 
     quoted
         Match a text quoted with single quotes, eg:
 
-         'barbara is sexy'
+          'barbara is sexy'
 
     hostname
         Match a valid hostname, it must qualify to the definitions in RFC
@@ -116,7 +116,7 @@ PREDEFINED BUILTIN DATA TYPES
         Match a valid absolute path, it won't do a stat() system call. This
         will work on any operating system at runtime. So this one:
 
-         C:\Temp
+          C:\Temp
 
         will return TRUE if running on WIN32, but FALSE on FreeBSD!
 
@@ -138,13 +138,13 @@ PREDEFINED BUILTIN DATA TYPES
         Matches a string of text containing variables (perl style variables
         though) eg:
 
-         $user is $attribute
-         I am $(years) old
-         Missing ${points} points to succeed
+          $user is $attribute
+          I am $(years) old
+          Missing ${points} points to succeed
 
 MIXED TYPES
     If there is an element which could match more than one type, this can be
-    matched by using the pipe sign `|' to separate the types.
+    matched by using the pipe sign "|" to separate the types.
 
       { name => 'int | number' }
 
@@ -187,19 +187,19 @@ VALIDATOR STRUCTURE
 
     Example:
 
-     $reference = { user => 'word', uid => 'int' };
+      $reference = { user => 'word', uid => 'int' };
 
     The following config would be validated successful:
 
-     $config = { user => 'HansDampf',  uid => 92 };
+      $config = { user => 'HansDampf',  uid => 92 };
 
     this one not:
 
-     $config = { user => 'Hans Dampf', uid => 'nine' };
-                              ^                ^^^^
-                              |                |
-                              |                +----- is not a number
-                              +---------------------- space not allowed
+      $config = { user => 'Hans Dampf', uid => 'nine' };
+                               ^                ^^^^
+                               |                |
+                               |                +----- is not a number
+                               +---------------------- space not allowed
 
     For easier writing of references you yould use a configuration file
     parser like Config::General or Config::Any, just write the definition
@@ -216,38 +216,38 @@ NESTED HASH STRUCTURES
 
     Given the following reference hash:
 
-     $ref = {
-     'b1' => {
+      $ref = {
+          'b1' => {
               'b2' => {
-                       'b3' => {
-                                'item' => 'int'
-                               }
-                      }
+                  'b3' => {
+                      'item' => 'int'
+                  }
               }
-     }
+          }
+      }
 
     Now if you validate it against the following config hash it will return
     TRUE:
 
-     $cfg = {
-     'b1' => {
+      $cfg = {
+          'b1' => {
               'b2' => {
-                       'b3' => {
-                                'item' => '100'
-                               }
-                      }
-             }
-     }
+                  'b3' => {
+                      'item' => '100'
+                  }
+              }
+          }
+      }
 
     If you validate it for example against this hash, it will return FALSE:
 
-     $cfg = {
-     'b1' => {
+      $cfg = {
+          'b1' => {
               'b2' => {
-                        'item' => '100'
-                       }
-             }
-     }
+                  'item' => '100'
+              }
+          }
+      }
 
 SUBROUTINES/METHODS
     validate($config)
@@ -265,22 +265,15 @@ SUBROUTINES/METHODS
 
         Example:
 
-         $v3->type(
-          (
-          address => qr(^\w+\s\s*\d+$),
-          list    =>
-            sub {
-              my $list = $_[0];
+          $v3->type(
+            address => qr(^\w+\s\s*\d+$),
+
+            list => sub {
+              my $list = shift;
               my @list = split /\s*,\s*/, $list;
-              if (scalar @list > 1) {
-                return 1;
-              }
-              else {
-                return 0;
-              }
-            }
-          )
-         );
+              return scalar @list > 1;
+            },
+          );
 
         In this example we add 2 new types, 'list' and 'address', which are
         really simple. 'address' is a regex which matches a word followed by
@@ -291,19 +284,28 @@ SUBROUTINES/METHODS
         match.
 
         A negative/reverse match is automatically added as well, see
-        NEGATIVE MATCHING.
+        "NEGATIVE MATCHING".
 
         Regexes will be executed exactly as given. No flags or ^ or $ will
         be used by the module. Eg. if you want to match the whole value from
         beginning to the end, add ^ and $, like you can see in our 'address'
         example above.
 
+        "type" do accept either a hash (%hash), a hash ref (%$hash) or a
+        list of key/values ("key => value") as input.
+
     debug()
         Enables debug output which gets printed to STDERR.
 
+    errors
+        Returns an array ref with the errors found when validating the hash.
+        Each error is on the format '<value> doesn't match <types> at
+        <ref>', where <ref> is a comma separated tree view depicting where
+        in the the error occured.
+
     errstr()
         Returns the last error, which is useful to notify the user about
-        what happened.
+        what happened. The format is like in "errors".
 
 EXAMPLES
     Take a look to t/run.t for lots of examples.
@@ -328,7 +330,7 @@ SEE ALSO
     Data::Validate::IP common data validation methods for IP-addresses.
 
 LICENSE AND COPYRIGHT
-    Copyright (c) 2007-2013 Thomas Linden
+    Copyright (c) 2007-2014 T. v.Dein
 
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
@@ -338,7 +340,7 @@ BUGS AND LIMITATIONS
     This will no more happen if entering a stable release (starting with
     1.00).
 
-    To submit use http://rt.cpan.org.
+    To submit use <http://rt.cpan.org>.
 
 INCOMPATIBILITIES
     None known.
@@ -373,11 +375,13 @@ TODO
 
         or something like this.
 
-AUTHOR
-    Thomas Linden <tlinden |AT| cpan.org>
+AUTHORS
+    T. v.Dein <tlinden |AT| cpan.org>
+
+    Per Carlson <pelle |AT| hemmop.com>
 
     Thanks to David Cantrell for his helpful hints.
 
 VERSION
-    0.07
+    0.08
 

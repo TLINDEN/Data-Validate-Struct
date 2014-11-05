@@ -1,5 +1,7 @@
 # -*-perl-*-
+use utf8;
 use Test::More;
+use Encode qw{ encode };
 
 require_ok( 'Data::Validate::Struct' );
 
@@ -43,11 +45,17 @@ my $ref = {
 
            'o1'  => 'int | optional',
 
+           'AoA' => [ [ 'int' ] ],
+
            'AoH' => [
              { fullname => 'text', user => 'word', uid => 'int' }
            ],
 
-            'AoA' => [ [ 'int' ] ],
+           'HoH' => {
+             father   => { fullname => 'text', user => 'word' },
+             son      => { fullname => 'text', user => 'word' },
+             daughter => { fullname => 'text', user => 'word' },
+           },
 	  };
 
 my $cfg =  {
@@ -93,120 +101,217 @@ my $cfg =  {
             'v27' => '10',
             'v28' => '$ten',
 
-            'AoH' => [
-              { fullname => 'Homer Simpson', user => 'homer', uid => 100 },
-              { fullname => 'Bart Simpson',  user => 'bart',  uid => 101 },
-              { fullname => 'Lisa Simpson',  user => 'lisa',  uid => 102 },
-            ],
-
             'AoA' => [
               [ qw{ 10 11 12 13 } ],
               [ qw{ 20 21 22 23 } ],
               [ qw{ 30 31 32 33 } ],
             ],
 
+            'AoH' => [
+              { fullname => 'Homer Simpson', user => 'homer', uid => 100 },
+              { fullname => 'Bart Simpson',  user => 'bart',  uid => 101 },
+              { fullname => 'Lisa Simpson',  user => 'lisa',  uid => 102 },
+            ],
+
+            'HoH' => {
+              father =>   { fullname => 'Homer Simpson', user => 'homer' },
+              son =>      { fullname => 'Bart Simpson',  user => 'bart'  },
+              daughter => { fullname => 'Lisa Simpson',  user => 'lisa'  },
+            },
 	   };
 
 my $v = new_ok('Data::Validate::Struct', [ $ref ]);
-ok ($v->validate($cfg), "validate a reference against a config " . $v->errstr());
+ok ($v->validate($cfg), "validate a reference against a OK config");
 
 
 
 # check failure matching
-my @failure =
-(
- { cfg  => q(acht),
-   type => q(int)
- },
-
- { cfg  => q(27^8),
-   type => q(number)
- },
-
- { cfg  => q(two words),
-   type => q(word)
- },
-
- { cfg  => qq(<<EOF\nzeile1\nzeile2\nzeile3\nEOF\n),
-   type => q(line)
- },
-
- { cfg  => q(ätz),
-   type => q(hostname)
- },
-
- { cfg  => q(gibtsnet123456790.intern),
-   type => q(resolvablehost)
- },
-
- { cfg  => q(äüö),
-   type => q(user)
- },
-
- { cfg  => q(äüö),
-   type => q(group)
- },
-
- { cfg  => q(234234444),
-   type => q(port)
- },
-
- { cfg  => q(unknown:/unsinnüäö),
-   type => q(uri)
- },
-
- { cfg  => q(1.1.1.1/33),
-   type => q(cidrv4)
- },
-
- { cfg  => q(300.1.1.1),
-   type => q(ipv4)
- },
-
- { cfg  => q(üäö),
-   type => q(fileexists)
- },
-
- { cfg  => q(not quoted),
-   type => q(quoted)
- },
-
- { cfg  => q(no regex),
-   type => q(regex)
- },
-
- { cfg  => q($contains some $vars),
-   type => q(novars)
- },
-
- { cfg  => q(2001:db8::dead::beef),
-   type => q(ipv6)
- },
-
- { cfg  => q(2001:db8:dead:beef::1/129),
-   type => q(cidrv6)
+my @failure = (
+ {
+   cfg  => q(acht),
+   type => q(int),
+   descr => 'int',
+   errors => 1,
  },
 
  {
-   cfg => [
-    { fullname => 'Homer Simpson', user => 'homer', uid => 100 },
-    { fullname => 'Bart Simpson',  user => 'bart',  uid => 101 },
-    { fullname => 'Lisa Simpson',  user => 'lisa:',  uid => 102 },
-   ],
+   cfg  => q(27^8),
+   type => q(number),
+   descr => 'number',
+   errors => 1,
+ },
 
-   type => [
-     { fullname => 'text', user => 'word', uid => 'int' }
-   ],
+ {
+   cfg  => q(two words),
+   type => q(word),
+   descr => 'word',
+   errors => 1,
+ },
+
+ {
+   cfg  => qq(<<EOF\nzeile1\nzeile2\nzeile3\nEOF\n),
+   type => q(line),
+   descr => 'line',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(Ã¤tz),
+   type => q(hostname),
+   descr => 'hostname',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(gibtsnet123456790.intern),
+   type => q(resolvablehost),
+   descr => 'resolvablehost',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(Ã¤Ã¼Ã¶),
+   type => q(user),
+   descr => 'user',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(Ã¤Ã¼Ã¶),
+   type => q(group),
+   descr => 'group',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(234234444),
+   type => q(port),
+   descr => 'port',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(unknown:/unsinnÃ¼Ã¤Ã¶),
+   type => q(uri),
+   descr => 'uri',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(1.1.1.1/33),
+   type => q(cidrv4),
+   descr => 'cidrv4',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(300.1.1.1),
+   type => q(ipv4),
+   descr => 'ipv4',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(Ã¼Ã¤Ã¶),
+   type => q(fileexists),
+   descr => 'fileexists',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(not quoted),
+   type => q(quoted),
+   descr => 'quoted',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(no regex),
+   type => q(regex),
+   descr => 'regex',
+   errors => 1,
+ },
+
+ {
+   cfg  => q($contains some $vars),
+   type => q(novars),
+   descr => 'novars',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(2001:db8::dead::beef),
+   type => q(ipv6),
+   descr => 'ipv6',
+   errors => 1,
+ },
+
+ {
+   cfg  => q(2001:db8:dead:beef::1/129),
+   type => q(cidrv6),
+   descr => 'cidrv6',
+   errors => 1,
  },
 
  {
    cfg => [
      [ qw{ 10 11 12 13 } ],
-     [ qw{ 20 21 22 23 } ],
+     [ qw{ 'twenty' 21 22 23 } ],
      [ qw{ 30 31 32.0 33 } ],
    ],
 
    type => [ [ 'int' ] ],
+
+   descr => 'array of arrays',
+   errors => 2,
+ },
+
+ {
+   cfg => [
+    { fullname => 'Homer Simpson', user => 'homer', uid => 100 },
+    { fullname => 'Bart Simpson',  user => ':bart',  uid => 101 },
+    { fullname => 'Lisa Simpson',  user => 'lisa',  uid => '102' },
+   ],
+
+   type => [
+     { fullname => 'text', user => 'word', uid => 'int' }
+   ],
+
+   descr => 'array of hashes',
+   errors => 1,
+ },
+
+ {
+   cfg => {
+    father   => { fullname => 'Homer Simpson', user => 'homer', uid => 100 },
+    son      => { fullname => 'Bart Simpson',  user => 'bart',  uid => 'one hundred one' },
+    daughter => { fullname => 'Lisa Simpson',  user => 'lisa:', uid => 'one hundred two' },
+  },
+
+   type => {
+     father   => { fullname => 'text', user => 'word', uid => 'int' },
+     son      => { fullname => 'text', user => 'word', uid => 'int' },
+     daughter => { fullname => 'text', user => 'word', uid => 'int' },
+   },
+
+   descr => 'hash of hashes',
+   errors => 3,
+ },
+
+ {
+    cfg => {
+      name    => 'Foo Bar',
+      age     => 42,
+    },
+
+    type => {
+      name    => 'text',
+      age     => 'int',
+      address => 'text',
+    },
+
+   descr => 'Missing required field',
+   errors => 1,
  },
 
 );
@@ -215,49 +320,68 @@ foreach my $test (@failure) {
   my $ref    = { v => $test->{type} };
   my $cfg    = { v => $test->{cfg}  };
   my $v      = new Data::Validate::Struct($ref);
-  if ($v->validate($cfg)) {
-    fail("could not catch invalid '$test->{type}'");
+  #$v->debug();
+  my $result = $v->validate($cfg);
+  my $descr = encode('UTF-8',
+    exists $test->{descr} ? $test->{descr} : $test->{cfg}
+  );
+  my $errors = exists $test->{errors} ? $test->{errors} : 1;
+  unless ($result) {
+    is @{$v->errors}, $errors, "Caught failure for '$descr'";
   }
   else {
-    pass("catched invalid '$test->{type}'");
+    fail("Couldn't catch invalid '$test->{descr}'");
   }
 }
 
+# clean old object
+undef $v;
+$v = Data::Validate::Struct->new({
+  h1 => { h2 => { item => 'int' } }
+});
+ok !$v->validate({
+  h1 => { h2 => { item => 'qux' } }
+}), 'item is not an h1 => h2 => int';
+is $v->errstr, q{'qux' doesn't match 'int' at 'h1 => h2'}, 'correct error trace';
 
 
 # adding custom type
-my $ref3 = { 
+my $ref3 = {
   v1 => 'address',
   v2 => 'list',
   v3 => 'noob',
   v4 => 'nonoob',
 };
-my $cfg3 = { 
+my $cfg3 = {
   v1 => 'Marblestreet 15',
   v2 => 'a1, b2, b3',
   v3 => 42,
   v4 => 43,
 };
 
-my $v3   = new Data::Validate::Struct($ref3);
-$v3->type(
- (
-  address => qr(^\w+\s\s*\d+$),
-  list    =>
-    sub {
-      my $list = $_[0];
-      my @list = split /\s*,\s*/, $list;
-      if (scalar @list > 1) {
-	return 1;
-      }
-      else {
-	return 0;
-      }
-    },
-  noob => sub { return $_[0] == 42 },
- )
+my $v3 = new Data::Validate::Struct($ref3);
+# add via hash
+note('added via hash');
+my %h = (
+  address => qr(^\w+\s\s*\d+$)
 );
-ok($v3->validate($cfg3), "using custom types " . $v3->errstr());
+$v3->type(%h);
+
+# add via hash ref
+note('added via hash ref');
+$v3->type({ list =>
+  sub {
+    my $list = $_[0];
+    my @list = split /\s*,\s*/, $list;
+    return scalar @list > 1;
+  }
+});
+
+# add via key => value
+note('added via key => val');
+$v3->type(noob => sub { return $_[0] == 42 });
+
+ok($v3->validate($cfg3), "using custom types");
 
 done_testing();
 

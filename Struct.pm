@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2013 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2007-2014 T. v.Dein <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -11,7 +11,7 @@ use warnings;
 use English '-no_match_vars';
 use Carp;
 use Exporter;
-
+use Encode qw{ encode };
 use Regexp::Common::URI::RFC2396 qw /$host $port/;
 use Regexp::Common qw /URI net delimited/;
 
@@ -21,21 +21,18 @@ use File::stat;
 use Data::Validate qw(:math is_printable);
 use Data::Validate::IP qw(is_ipv4 is_ipv6);
 
-use constant FALSE => 0;
-use constant TRUE  => 1;
-
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 
 use vars  qw(@ISA);
 
 sub new {
-  my( $this, $structure ) = @_;
-  my $class = ref($this) || $this;
+  my ($class, $structure) = @_;
+  $class = ref($class) || $class;
 
-  my $self;
+  my $self = bless {}, $class;
+
   $self->{structure} = $structure;
 
-  #
   # if types will be implemented in Data::Validate, remove our own
   # types from here and use Data::Validate's methods as subroutine
   # checks, which we already support.
@@ -112,138 +109,164 @@ sub new {
 		    };
 
   $self->{debug} = 0;
+  $self->{errors} = [];
 
   foreach my $type (%{$self->{types}}) {
     # add negative match types
     $self->{types}->{'no' . $type} = $self->{types}->{$type};
   }
 
-  bless $self, $class;
-
   return $self;
 }
 
 
-sub type {
-  my ($this, %param) = @_;
-  foreach my $type (keys %param) {
-    $this->{types}->{$type} = $param{$type};
-    # add negative match types
-    $this->{types}->{'no' . $type} = $param{$type};
-  }
-}
-
-
 sub debug {
-  my ($this) = @_;
-  $this->{debug} = 1;
+  shift->{debug} = 1;
 }
+
+
+sub errors {
+  my $self = shift;
+  return $self->{errors};
+}
+
 
 sub errstr {
-  my ($this) = @_;
-  if (exists $this->{error}) {
-    return $this->{error};
+  my $self = shift;
+  return $self->{errors} ? $self->{errors}->[0] : '';
+}
+
+
+sub type {
+  my $self = shift;
+  return unless @_;
+
+  my $param = @_ > 1 ? {@_} : {%{$_[0]}};
+
+  foreach my $type (keys %$param) {
+    $self->{types}->{$type} = $param->{$type};
+    # add negative match types
+    $self->{types}->{'no' . $type} = $param->{$type};
   }
 }
+
 
 sub validate {
-  my($this, $config) = @_;
+  my ($self, $config) = @_;
 
-  eval {
-    $this->traverse($this->{structure}, $config);
-  };
-  if ($@) {
-    $this->{error} = $@;
-    return FALSE;
-  }
-  else {
-    return TRUE;
-  }
+  $self->_traverse($self->{structure}, $config, ());
+  # return TRUE if no errors
+  return scalar @{ $self->{errors} } == 0;
 }
 
+# Private methods
+
 sub _debug {
-  my ($this, $msg) = @_;
-  if ($this->{debug}) {
+  my ($self, $msg) = @_;
+  if ($self->{debug}) {
     print STDERR "D::V::S::debug() - $msg\n";
   }
 }
 
-sub traverse {
-  my($this, $reference, $hash) = @_;
+sub _traverse {
+  my ($self, $reference, $hash, @tree) = @_;
 
   foreach my $key (keys %{$reference}) {
     if (ref($reference->{$key}) eq 'ARRAY') {
       # just use the 1st one, more elements in array are expected to be the same
       foreach my $item (@{$hash->{$key}}) {
-	if (ref($item) eq q(HASH)) {
-	  $this->traverse($reference->{$key}->[0], $item);
-	}
-	else {
-	  # a value, this is tricky
-	  $this->traverse({item => $reference->{$key}->[0]}, { item => $item});
-	}
+        if (ref($item) eq q(HASH)) {
+          # traverse the structure pushing our key to the @tree
+          $self->_traverse($reference->{$key}->[0], $item, @tree, $key);
+        }
+        else {
+          # a value, this is tricky
+          $self->_traverse(
+            { item => $reference->{$key}->[0] },
+            { item => $item },
+            @tree, $key
+          );
+        }
       }
     }
     elsif (ref($reference->{$key}) eq 'HASH') {
-      $this->traverse($reference->{$key}, $hash->{$key});
+      $self->_traverse($reference->{$key}, $hash->{$key}, @tree, $key);
     }
     elsif (ref($reference->{$key}) eq '') {
-      my @types = _trim( (split /\|/, $reference->{$key}) );
-      # check data types
-      if (grep { ! exists $this->{types}->{$_} } @types) {
-	croak qq(Invalid data type in "$reference->{$key}");
+      $self->_debug("Checking $key at " . join(', ', @tree));
+      if (my $err = $self->_check_type($key, $reference, $hash)) {
+        push @{$self->{errors}}, sprintf(q{%s at '%s'}, $err, join(' => ', @tree));
       }
-      else {
-	if (exists $hash->{$key}) {
-	  $this->check_type(\@types, $key, $hash->{$key});
-	}
-        elsif (grep { $_ eq 'optional' } @types) {
-          # do nothing
-          $this->_debug("$key is optional");
-        }
-	else {
-	  die "required $key doesn't exist in hash\n";
-	}
-      }
-    } else {
-      croak "Invalid data type '$reference->{$key}: " . ref($reference->{$key});
     }
   }
 }
 
-sub check_type {
-  my($this, $types, $name, $value) = @_;
+sub _check_type {
+  my ($self, $key, $reference, $hash) = @_;
+
+  my @types = _trim( (split /\|/, $reference->{$key}) );
+  # check data types
+  if (grep { ! exists $self->{types}->{$_} } @types) {
+    return "Invalid data type '$reference->{$key}'";
+  }
+
+  # does $key exist in $hash
+  unless (exists $hash->{$key}) {
+    # is it an optional key?
+    if (grep { $_ eq 'optional' } @types) {
+      # do nothing
+      $self->_debug("$key is optional");
+      return;
+    }
+    else {
+      # report error
+      return "Required key '$key' is missing";
+    }
+  }
+
+  # the value in $hash->{$key} (shortcut)
+  my $value = $hash->{$key};
 
   # the aggregated match over *all* types
   my $match = 0;
-  foreach my $type (@$types) {
+  foreach my $type (@types) {
+    # skip optional data type (can't be compared)
     next if $type eq 'optional';
 
     # if the type begins with 'no' AND the remainder of the type
     # also exists in the type hash, we are expects something that is
-    # FALSE (0), else TRUE (0).
+    # FALSE (0), else TRUE (1).
     # we must check for both, if not we will get a false match on a type
     # called 'nothing'.
-    my $expects = TRUE;
+    my $expects = 1;
     if ($type =~ /^no(.*)/) {
-      $expects = FALSE if exists $this->{types}->{$1};
+      $expects = 0 if exists $self->{types}->{$1};
     }
 
-    my $result = ref($this->{types}->{$type}) eq q(CODE)
-      ? &{$this->{types}->{$type}}($value)  ? TRUE : FALSE   # execute closure
-      : $value =~ /$this->{types}->{$type}/ ? TRUE : FALSE;
+    # "Evaluate" this $type. We set $result explicitly to 1 or 0
+    # instead of relying the coderef returning a proper value.
+    # This makes comparing $expects and $result mush easier, no magic
+    # type conversions are needed.
+    my $result = ref($self->{types}->{$type}) eq q(CODE)
+      # the the type is a code ref, execute the code
+      ? &{$self->{types}->{$type}}($value)  ? 1 : 0
+      # else it's an regexp, check if it's a match
+      : $value =~ /$self->{types}->{$type}/ ? 1 : 0;
 
-    $this->_debug(sprintf(
-      "%s = %s, value %s %s", $name, $value, $result ? 'is' : 'is not', $type
+    $self->_debug(sprintf(
+      '%s = %s, value %s %s',
+      $key,
+      encode('UTF-8', $value),
+      $result ? 'is' : 'is not',
+      $type
     ));
     $match ||= ($expects == $result);
   }
 
-  # die if it doesn't match
-  die("$name = $value, value doesn't match " . join(' | ', @$types)) unless $match;
+  return if $match;
 
-  # else return gracefully
-  return;
+  return sprintf q{'%s' doesn't match '%s'},
+    encode('UTF-8', $value), $reference->{$key};
 }
 
 
@@ -330,9 +353,9 @@ is very loosy, consider it as an alias to B<any>.
 
 Match a perl regex using the operator qr(). Valid examples include:
 
- qr/[0-9]+/
- qr([^%]*)
- qr{\w+(\d+?)}
+  qr/[0-9]+/
+  qr([^%]*)
+  qr{\w+(\d+?)}
 
 Please note, that this doesn't mean you can provide
 here a regex against config options must match.
@@ -341,9 +364,9 @@ Instead this means that the config options contains a regex.
 
 eg:
 
- <cfg>
-   grp  = qr/root|wheel/
- </cfg>
+  $cfg = {
+    grp  = qr/root|wheel/
+  };
 
 B<regex> would match the content of the variable 'grp'
 in this example.
@@ -363,11 +386,11 @@ Match an IPv4 address.
 
 The same as above including cidr netmask (/24), IPv4 only, eg:
 
- 10.2.123.0/23
+  10.2.123.0/23
 
 Note: shortcuts are not supported for the moment, eg:
 
- 10.10/16
+  10.10/16
 
 will fail while it is still a valid IPv4 cidr notation for
 a network address (short for 10.10.0.0/16). Must be fixed
@@ -377,24 +400,24 @@ in L<Regex::Common>.
 
 Match an IPv6 address. Some examples:
 
- 3ffe:1900:4545:3:200:f8ff:fe21:67cf
- fe80:0:0:0:200:f8ff:fe21:67cf
- fe80::200:f8ff:fe21:67cf
- ff02:0:0:0:0:0:0:1
- ff02::1
+  3ffe:1900:4545:3:200:f8ff:fe21:67cf
+  fe80:0:0:0:200:f8ff:fe21:67cf
+  fe80::200:f8ff:fe21:67cf
+  ff02:0:0:0:0:0:0:1
+  ff02::1
 
 =item B<cidrv6>
 
 The same as above including cidr netmask (/64), IPv6 only, eg:
 
- 2001:db8:dead:beef::1/64
- 2001:db8::/32
+  2001:db8:dead:beef::1/64
+  2001:db8::/32
 
 =item B<quoted>
 
 Match a text quoted with single quotes, eg:
 
- 'barbara is sexy'
+  'barbara is sexy'
 
 =item B<hostname>
 
@@ -411,7 +434,7 @@ dns is available at runtime.
 Match a valid absolute path, it won't do a stat() system call.
 This will work on any operating system at runtime. So this one:
 
- C:\Temp
+  C:\Temp
 
 will return TRUE if running on WIN32, but FALSE on FreeBSD!
 
@@ -436,9 +459,9 @@ Match a valid tcp/udp port. Must be a digit between 0 and 65535.
 Matches a string of text containing variables (perl style variables though)
 eg:
 
- $user is $attribute
- I am $(years) old
- Missing ${points} points to succeed
+  $user is $attribute
+  I am $(years) old
+  Missing ${points} points to succeed
 
 =back
 
@@ -496,19 +519,19 @@ hash.
 
 Example:
 
- $reference = { user => 'word', uid => 'int' };
+  $reference = { user => 'word', uid => 'int' };
 
 The following config would be validated successful:
 
- $config = { user => 'HansDampf',  uid => 92 };
+  $config = { user => 'HansDampf',  uid => 92 };
 
 this one not:
 
- $config = { user => 'Hans Dampf', uid => 'nine' };
-                          ^                ^^^^
-                          |                |
-                          |                +----- is not a number
-                          +---------------------- space not allowed
+  $config = { user => 'Hans Dampf', uid => 'nine' };
+                           ^                ^^^^
+                           |                |
+                           |                +----- is not a number
+                           +---------------------- space not allowed
 
 For easier writing of references you yould use a configuration
 file parser like Config::General or Config::Any, just write the
@@ -525,39 +548,39 @@ throw an error, which B<Data::Validate::Struct> catches and returns FALSE.
 
 Given the following reference hash:
 
- $ref = {
- 'b1' => {
+  $ref = {
+      'b1' => {
           'b2' => {
-                   'b3' => {
-                            'item' => 'int'
-                           }
-                  }
+              'b3' => {
+                  'item' => 'int'
+              }
           }
- }
+      }
+  }
 
 Now if you validate it against the following config hash it
 will return TRUE:
 
- $cfg = {
- 'b1' => {
-	  'b2' => {
-		   'b3' => {
-			    'item' => '100'
-			   }
-		  }
-	 }
- }
+  $cfg = {
+      'b1' => {
+          'b2' => {
+              'b3' => {
+                  'item' => '100'
+              }
+          }
+      }
+  }
 
 If you validate it for example against this hash, it will
 return FALSE:
 
- $cfg = {
- 'b1' => {
-	  'b2' => {
-		    'item' => '100'
-		   }
-	 }
- }
+  $cfg = {
+      'b1' => {
+          'b2' => {
+              'item' => '100'
+          }
+      }
+  }
 
 =head1 SUBROUTINES/METHODS
 
@@ -580,22 +603,15 @@ method. Values in this hash can be regexes or anonymous subs.
 
 Example:
 
- $v3->type(
-  (
-  address => qr(^\w+\s\s*\d+$),
-  list    =>
-    sub {
-      my $list = $_[0];
+  $v3->type(
+    address => qr(^\w+\s\s*\d+$),
+
+    list => sub {
+      my $list = shift;
       my @list = split /\s*,\s*/, $list;
-      if (scalar @list > 1) {
-	return 1;
-      }
-      else {
-	return 0;
-      }
-    }
-  )
- );
+      return scalar @list > 1;
+    },
+  );
 
 In this example we add 2 new types, 'list' and 'address', which
 are really simple. 'address' is a regex which matches a word
@@ -612,14 +628,24 @@ will be used by the module. Eg. if you want to match the whole
 value from beginning to the end, add ^ and $, like you can see
 in our 'address' example above.
 
+C<type> do accept either a hash (C<%hash>), a hash ref (C<%$hash>) or a
+list of key/values (C<< key => value >>) as input.
+
 =item B<debug()>
 
 Enables debug output which gets printed to STDERR.
 
+=item B<errors>
+
+Returns an array ref with the errors found when validating the hash.
+Each error is on the format '<value> doesn't match <types> at <ref>',
+where <ref> is a comma separated tree view depicting where in the
+the error occured.
+
 =item B<errstr()>
 
 Returns the last error, which is useful to notify the user
-about what happened.
+about what happened. The format is like in L</errors>.
 
 =back
 
@@ -649,7 +675,7 @@ L<Data::Validate::IP> common data validation methods for IP-addresses.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2007-2013 Thomas Linden
+Copyright (c) 2007-2014 T. v.Dein
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -710,15 +736,17 @@ or something like this.
 
 =back
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Thomas Linden <tlinden |AT| cpan.org>
+T. v.Dein <tlinden |AT| cpan.org>
+
+Per Carlson <pelle |AT| hemmop.com>
 
 Thanks to David Cantrell for his helpful hints.
 
 =head1 VERSION
 
-0.07
+0.08
 
 =cut
 
