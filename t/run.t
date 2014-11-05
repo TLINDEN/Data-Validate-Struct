@@ -56,6 +56,8 @@ my $ref = {
              son      => { fullname => 'text', user => 'word' },
              daughter => { fullname => 'text', user => 'word' },
            },
+
+	   'r1' => 'range(80-90)',
 	  };
 
 my $cfg =  {
@@ -118,6 +120,8 @@ my $cfg =  {
               son =>      { fullname => 'Bart Simpson',  user => 'bart'  },
               daughter => { fullname => 'Lisa Simpson',  user => 'lisa'  },
             },
+
+	    'r1' => 85,
 	   };
 
 my $v = new_ok('Data::Validate::Struct', [ $ref ]);
@@ -314,12 +318,19 @@ my @failure = (
    errors => 1,
  },
 
+ {
+  cfg => 100,
+  type => 'range(200-1000)',
+  descr => 'value outside dynamic range',
+  errors => 1,
+ },
+
 );
 
 foreach my $test (@failure) {
   my $ref    = { v => $test->{type} };
   my $cfg    = { v => $test->{cfg}  };
-  my $v      = new Data::Validate::Struct($ref);
+  my $v      = Data::Validate::Struct->new($ref);
   #$v->debug();
   my $result = $v->validate($cfg);
   my $descr = encode('UTF-8',
@@ -333,6 +344,7 @@ foreach my $test (@failure) {
     fail("Couldn't catch invalid '$test->{descr}'");
   }
 }
+
 
 # clean old object
 undef $v;

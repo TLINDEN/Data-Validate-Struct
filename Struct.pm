@@ -23,28 +23,21 @@ use Data::Validate::IP qw(is_ipv4 is_ipv6);
 
 our $VERSION = 0.08;
 
-use vars  qw(@ISA);
+use vars qw(@ISA);
 
-sub new {
-  my ($class, $structure) = @_;
-  $class = ref($class) || $class;
+use vars qw(@ISA @EXPORT @EXPORT_OK %__ValidatorTypes);
+require Exporter;
+@ISA = qw(Exporter);
+@EXPORT = qw(%__ValidatorTypes);
+@EXPORT_OK = qw(add_validators);
 
-  my $self = bless {}, $class;
-
-  $self->{structure} = $structure;
-
-  # if types will be implemented in Data::Validate, remove our own
-  # types from here and use Data::Validate's methods as subroutine
-  # checks, which we already support.
-  $self->{types} = {
+%__ValidatorTypes = (
 		    # primitives
 		    int            => sub { return defined(is_integer($_[0])); },
 		    hex            => sub { return defined(is_hex($_[0])); },
 		    oct            => sub { return defined(is_oct($_[0])); },
-
-		    # FIXME: add is_between argumented types, need more than one argument
-
 		    number         => sub { return defined(is_numeric($_[0])); },
+
 		    word           => qr(^[\w_\-]+$),
 		    line           => qr/^[^\n]+$/s,
 
@@ -102,16 +95,44 @@ sub new {
 		    group          => sub { return getgrnam($_[0]); },
 
 		    # int between 0 - 65535
-		    port           => sub { if ( $_[0] =~ /^$port$/ && ($_[0] > 0 && $_[0] < 65535) ) { return 1; } else { return 0; } },
+		    port           => sub {
+		      if ( $_[0] =~ /^$port$/ && ($_[0] > 0 && $_[0] < 65535) )
+			{ return 1; } else { return 0; } },
+
+		    # variable integer range, use: range(N1 - N2)
+		    range          => sub {
+		      if ( defined(is_integer($_[0])) && ($_[0] >= $_[2] && $_[0] <= $_[3]) )
+			{ return 1; } else { return 0; } },
 
                     # just a place holder at make the key exist
                     optional       => 1,
-		    };
+);
 
+sub add_validators {
+  # class method, add validators globally, not per object
+  my(%v) = @_;
+  foreach my $type (keys %v) { 
+    $__ValidatorTypes{$type} = $v{$type};
+  }
+}
+
+sub new {
+  my ($class, $structure) = @_;
+  $class = ref($class) || $class;
+
+  my $self = bless {}, $class;
+
+  $self->{structure} = $structure;
+
+  # if types will be implemented in Data::Validate, remove our own
+  # types from here and use Data::Validate's methods as subroutine
+  # checks, which we already support.
+  $self->{types} = \%__ValidatorTypes;
+		    
   $self->{debug} = 0;
   $self->{errors} = [];
 
-  foreach my $type (%{$self->{types}}) {
+  foreach my $type (keys %{$self->{types}}) {
     # add negative match types
     $self->{types}->{'no' . $type} = $self->{types}->{$type};
   }
@@ -204,9 +225,10 @@ sub _traverse {
 sub _check_type {
   my ($self, $key, $reference, $hash) = @_;
 
-  my @types = _trim( (split /\|/, $reference->{$key}) );
+  my (@types, @tmptypes, @tokens);
+  @types = @tmptypes = _trim( (split /\|/, $reference->{$key}) );
   # check data types
-  if (grep { ! exists $self->{types}->{$_} } @types) {
+  if (grep { ! exists $self->{types}->{$_} } map { s/\(.*//; $_ } @tmptypes) {
     return "Invalid data type '$reference->{$key}'";
   }
 
@@ -233,6 +255,10 @@ sub _check_type {
     # skip optional data type (can't be compared)
     next if $type eq 'optional';
 
+    # tokenize the type into params, only used by coderefs
+    # passed to coderef: &code($value, $typename, $unparsed_args, $arg1, $arg2 ...)
+    ($type, @tokens) = _tokenize($type);
+
     # if the type begins with 'no' AND the remainder of the type
     # also exists in the type hash, we are expects something that is
     # FALSE (0), else TRUE (1).
@@ -249,7 +275,7 @@ sub _check_type {
     # type conversions are needed.
     my $result = ref($self->{types}->{$type}) eq q(CODE)
       # the the type is a code ref, execute the code
-      ? &{$self->{types}->{$type}}($value)  ? 1 : 0
+      ? &{$self->{types}->{$type}}($value, @tokens)  ? 1 : 0
       # else it's an regexp, check if it's a match
       : $value =~ /$self->{types}->{$type}/ ? 1 : 0;
 
@@ -276,6 +302,23 @@ sub _trim {
     s/^\s+|\s+$//;
   }
   return wantarray ? @a : $a[0];
+}
+
+sub _tokenize {
+  my $type = shift;
+
+  if ($type =~ /(.+?)\((.+?)\)/) {
+    print "func pattern\n";
+    # type matches a function like pattern eg highport(1-1023)
+    my $name = $1;
+    my $args = $2;
+    $args =~ s/\s//g;
+    my @params = split /[\,\-]/, $args;
+    return ($name, $args, @params);
+  }
+  print "nofunc <$type>\n";
+  # default, just return the name as it is
+  return ($type);
 }
 
 1;
@@ -323,6 +366,12 @@ so you need to install it too.
 =item B<int>
 
 Match a simple integer number.
+
+=item B<range(a-b)>
+
+Match a simple integer number in a range between a and b. Eg:
+
+ { loginport => 'range(22-23)' }
 
 =item B<hex>
 
@@ -618,7 +667,38 @@ are really simple. 'address' is a regex which matches a word
 followed by an integer. 'list' is a subroutine which gets called
 during evaluation for each option which you define as type 'list'.
 
-Such subroutines must return a true value in order to produce a match.
+Such a subroutine must return a true value in order to produce a match.
+It receives the following arguments:
+
+=over
+
+=item value to be evaluated
+
+=item unparsed arguments, if defined in the reference
+
+=item array of parsed arguments, tokenized by , and -
+
+=back
+
+That way you may define a type which accepts an arbitrary number
+of arguments, which makes the type customizable. Sample:
+
+ # new validator
+ $v4 = Data::Validate::Struct->new({ list => nwords(4) });
+ 
+ # define type 'nwords' with support for 1 argument
+ $v4->type(
+   nwords => sub {
+     my($val, $ignore, $count) = @_;
+     return (scalar(split /\s+/, $val) == $count) ? 1 : 0;
+   },
+ );
+ 
+ # validate
+ $v4->validate({ list => 'these are four words' });
+ 
+It is also possible to add validators globally so they are
+available during repeated calls to B<new>, see B<add_validators>.
 
 A negative/reverse match is automatically added as well, see
 L</NEGATIVE MATCHING>.
@@ -628,7 +708,7 @@ will be used by the module. Eg. if you want to match the whole
 value from beginning to the end, add ^ and $, like you can see
 in our 'address' example above.
 
-C<type> do accept either a hash (C<%hash>), a hash ref (C<%$hash>) or a
+C<type> does accept either a hash (C<%hash>), a hash ref (C<%$hash>) or a
 list of key/values (C<< key => value >>) as input.
 
 =item B<debug()>
@@ -648,6 +728,20 @@ Returns the last error, which is useful to notify the user
 about what happened. The format is like in L</errors>.
 
 =back
+
+=head1 EXPORTED FUNCTIONS
+
+=head2 add_validators
+
+This is a class function which adds types not per object
+but globally for each instance of Data::Validate::Struct.
+
+ use Data::Validate::Struct qw(add_validators);
+ add_validators( name => .. );
+ my $v = Data::Validate::Struct->new(..);
+
+Parameter to B<add_validators> are the same as of the
+B<type> method.
 
 =head1 EXAMPLES
 
