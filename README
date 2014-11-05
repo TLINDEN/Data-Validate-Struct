@@ -27,6 +27,11 @@ DESCRIPTION
 PREDEFINED BUILTIN DATA TYPES
     int Match a simple integer number.
 
+    range(a-b)
+        Match a simple integer number in a range between a and b. Eg:
+
+         { loginport => 'range(22-23)' }
+
     hex Match a hex value.
 
     oct Match an octagonal value.
@@ -280,8 +285,32 @@ SUBROUTINES/METHODS
         an integer. 'list' is a subroutine which gets called during
         evaluation for each option which you define as type 'list'.
 
-        Such subroutines must return a true value in order to produce a
-        match.
+        Such a subroutine must return a true value in order to produce a
+        match. It receives the following arguments:
+
+        value to be evaluated
+        unparsed arguments, if defined in the reference
+        array of parsed arguments, tokenized by , and -
+
+        That way you may define a type which accepts an arbitrary number of
+        arguments, which makes the type customizable. Sample:
+
+         # new validator
+         $v4 = Data::Validate::Struct->new({ list => nwords(4) });
+ 
+         # define type 'nwords' with support for 1 argument
+         $v4->type(
+           nwords => sub {
+             my($val, $ignore, $count) = @_;
+             return (scalar(split /\s+/, $val) == $count) ? 1 : 0;
+           },
+         );
+ 
+         # validate
+         $v4->validate({ list => 'these are four words' });
+
+        It is also possible to add validators globally so they are available
+        during repeated calls to new, see add_validators.
 
         A negative/reverse match is automatically added as well, see
         "NEGATIVE MATCHING".
@@ -291,7 +320,7 @@ SUBROUTINES/METHODS
         beginning to the end, add ^ and $, like you can see in our 'address'
         example above.
 
-        "type" do accept either a hash (%hash), a hash ref (%$hash) or a
+        "type" does accept either a hash (%hash), a hash ref (%$hash) or a
         list of key/values ("key => value") as input.
 
     debug()
@@ -306,6 +335,17 @@ SUBROUTINES/METHODS
     errstr()
         Returns the last error, which is useful to notify the user about
         what happened. The format is like in "errors".
+
+EXPORTED FUNCTIONS
+  add_validators
+    This is a class function which adds types not per object but globally
+    for each instance of Data::Validate::Struct.
+
+     use Data::Validate::Struct qw(add_validators);
+     add_validators( name => .. );
+     my $v = Data::Validate::Struct->new(..);
+
+    Parameter to add_validators are the same as of the type method.
 
 EXAMPLES
     Take a look to t/run.t for lots of examples.
@@ -358,10 +398,6 @@ DEPENDENCIES
     Data::Validate:IP, Regexp::Common, File::Spec and File::stat.
 
 TODO
-    *   Add support for ranges, in fact Regexp::Common or Data::Validate
-        already supports this, but Data::Validate::Struct currently doesn't
-        support parameters for types.
-
     *   Perhaps add code validation too, for example we could have a type
         'perl' which tries to evaluate the given value. On the other side
         this may lead to security holes - so I might never do it.

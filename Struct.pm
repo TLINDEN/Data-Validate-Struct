@@ -805,12 +805,6 @@ L<Data::Validate:IP>, L<Regexp::Common>, L<File::Spec> and L<File::stat>.
 
 =item *
 
-Add support for ranges, in fact L<Regexp::Common> or L<Data::Validate> already
-supports this, but B<Data::Validate::Struct> currently doesn't support
-parameters for types.
-
-=item *
-
 Perhaps add code validation too, for example we could have
 a type 'perl' which tries to evaluate the given value. On the
 other side this may lead to security holes - so I might never do it.
