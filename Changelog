@@ -1,0 +1,46 @@
+0.06
+	o fixed t/run.t, it used still the old name, all tests
+	  failed therefore.
+
+	o replaced some of the built-in regexes with methods
+	  of Data::Validate(the real one :-) ).
+
+	o added 2 new types: hex and oct.
+
+
+0.05
+	o well, against renamed it to Data::Validate::Struct,
+	  because Data::Validate already exists.
+
+	o removed chack for 'resolvablehost' because some cpantesters
+	  failed to run it.
+
+
+0.04
+        o renamed Config::General::Validate to Data::Validate
+          because this tells much better what it does.
+
+	o started with 0.x version numbering to show the
+	  early stage of the module.
+	
+	o added ipv6 type
+
+	o fixed several bugs with existing types. Thanks to
+	  David Cantrell for some very useful hints.
+
+	o added more documentation.
+
+--------------
+       Original Config::General::Validate Changelog:
+	1.03
+		o oops - forgot to increase version number, therefore CPAN
+	  	didn't get it.
+	
+	1.02
+		o removed inheritance of Config::General, which is senceless
+	
+	1.01
+		o added Regex::Common support
+	
+	1.00
+		o initial release
