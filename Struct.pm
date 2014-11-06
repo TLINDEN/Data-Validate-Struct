@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2007-2014 T. v.Dein <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 # namespace
 package Data::Validate::Struct;
@@ -316,7 +316,7 @@ sub _tokenize {
     my @params = split /[\,\-]/, $args;
     return ($name, $args, @params);
   }
-  print "nofunc <$type>\n";
+
   # default, just return the name as it is
   return ($type);
 }
@@ -650,66 +650,10 @@ You can enhance the validator by adding your own rules. Just
 add one or more new types using a simple hash using the B<type()>
 method. Values in this hash can be regexes or anonymous subs.
 
-Example:
-
-  $v3->type(
-    address => qr(^\w+\s\s*\d+$),
-
-    list => sub {
-      my $list = shift;
-      my @list = split /\s*,\s*/, $list;
-      return scalar @list > 1;
-    },
-  );
-
-In this example we add 2 new types, 'list' and 'address', which
-are really simple. 'address' is a regex which matches a word
-followed by an integer. 'list' is a subroutine which gets called
-during evaluation for each option which you define as type 'list'.
-
-Such a subroutine must return a true value in order to produce a match.
-It receives the following arguments:
-
-=over
-
-=item value to be evaluated
-
-=item unparsed arguments, if defined in the reference
-
-=item array of parsed arguments, tokenized by , and -
-
-=back
-
-That way you may define a type which accepts an arbitrary number
-of arguments, which makes the type customizable. Sample:
-
- # new validator
- $v4 = Data::Validate::Struct->new({ list => nwords(4) });
- 
- # define type 'nwords' with support for 1 argument
- $v4->type(
-   nwords => sub {
-     my($val, $ignore, $count) = @_;
-     return (scalar(split /\s+/, $val) == $count) ? 1 : 0;
-   },
- );
- 
- # validate
- $v4->validate({ list => 'these are four words' });
- 
-It is also possible to add validators globally so they are
-available during repeated calls to B<new>, see B<add_validators>.
-
-A negative/reverse match is automatically added as well, see
-L</NEGATIVE MATCHING>.
-
-Regexes will be executed exactly as given. No flags or ^ or $
-will be used by the module. Eg. if you want to match the whole
-value from beginning to the end, add ^ and $, like you can see
-in our 'address' example above.
-
 C<type> does accept either a hash (C<%hash>), a hash ref (C<%$hash>) or a
 list of key/values (C<< key => value >>) as input.
+
+For details see L<CUSTOM VALIDATORS>.
 
 =item B<debug()>
 
@@ -740,8 +684,139 @@ but globally for each instance of Data::Validate::Struct.
  add_validators( name => .. );
  my $v = Data::Validate::Struct->new(..);
 
-Parameter to B<add_validators> are the same as of the
+Parameters to B<add_validators> are the same as of the
 B<type> method.
+
+For details see L<CUSTOM VALIDATORS>.
+
+=head1 CUSTOM VALIDATORS
+
+You can add your own validators, which maybe regular expressions
+or anonymous subs. Validators can be added using the B<type()>
+method or globally using the B<add_validators()> function.
+
+=head2 CUSTOM REGEX VALIDATORS
+
+If you add a validator which is just a regular expressions,
+it will evaluated as is. This is the most simplest way to
+customize validation.
+
+Sample:
+
+ use Data::Validate::Struct qw(add_validators);
+ add_validators(address => qr(^\w+\s\s*\d+$));
+ my $v = Data::Validate::Struct->new({place => 'address'});
+ $v->validate({place => 'Livermore 19'});
+
+Regexes will be executed exactly as given. No flags or ^ or $
+will be used by the module. Eg. if you want to match the whole
+value from beginning to the end, add ^ and $, like you can see
+in our 'address' example above.
+
+=head2 CUSTOM VALIDATOR FUNCTIONS
+
+If the validator is a coderef, it will be executed as a sub.
+
+Example:
+
+ use Data::Validate::Struct qw(add_validators);
+ add_validators(
+    list => sub {
+      my $list = shift;
+      my @list = split /\s*,\s*/, $list;
+      return scalar @list > 1;
+    },
+ );
+
+In this example we add a new type 'list', which
+is really simple. 'list' is a subroutine which gets called
+during evaluation for each option which you define as type 'list'.
+
+Such a subroutine must return a true value in order to produce a match.
+It receives the following arguments:
+
+=over
+
+=item *
+
+value to be evaluated
+
+=item *
+
+unparsed arguments, if defined in the reference
+
+=item *
+
+array of parsed arguments, tokenized by , and -
+
+=back
+
+That way you may define a type which accepts an arbitrary number
+of arguments, which makes the type customizable. Sample:
+
+ # new validator
+ $v4 = Data::Validate::Struct->new({ list => nwords(4) });
+ 
+ # define type 'nwords' with support for 1 argument
+ $v4->type(
+   nwords => sub {
+     my($val, $ignore, $count) = @_;
+     return (scalar(split /\s+/, $val) == $count) ? 1 : 0;
+   },
+ );
+ 
+ # validate
+ $v4->validate({ list => 'these are four words' });
+ 
+
+=head2 CUSTOM VALIDATORS USING A GRAMMAR
+
+Sometimes you want to be more flexible, in such cases you may
+use a parser generator to validate input. This is no feature
+of Data::Validate::Struct, you will just write a custom code
+ref validator, which then uses the grammar.
+
+Here's a complete example using L<Parse::RecDescent>:
+
+ use Parse::RecDescent;
+ use Data::Validate::Struct qw(add_validators);
+ 
+ my $grammar = q{
+    line: expr(s)
+    expr: number operator number
+    number: int | float
+    int: /\d+/
+    float: /\d*\\.\d+/
+    operator: '+' | '-' | '*' | '/'
+ };
+ 
+ my $parse = Parse::RecDescent->new($grammar);
+ 
+ add_validators(calc => sub { defined $parse->line($_[0]) ? 1 : 0; });
+ 
+ my $val = Data::Validate::Struct->new({line => 'calc'});
+ 
+ if ($val->validate({line => "@ARGV"})) {
+   my $r;
+   eval "\$r = @ARGV";
+   print "$r\n";
+ }
+ else {
+   print "syntax error\n";
+ }
+
+Now you can use it as follows:
+
+ ./mycalc 54 + 100 - .1
+ 153.9
+ 
+ ./mycalc 8^2
+ syntax error
+
+=head2 NEGATED VALIDATOR
+
+A negative/reverse match is automatically added as well, see
+L</NEGATIVE MATCHING>.
 
 =head1 EXAMPLES
 
@@ -799,36 +874,11 @@ For example to debug the regex matching during processing try this:
 Data::Validate::Struct depends on the module L<Data::Validate>,
 L<Data::Validate:IP>, L<Regexp::Common>, L<File::Spec> and L<File::stat>.
 
-=head1 TODO
-
-=over
-
-=item *
-
-Perhaps add code validation too, for example we could have
-a type 'perl' which tries to evaluate the given value. On the
-other side this may lead to security holes - so I might never do it.
-
-=item *
-
-Plugin System
-
-=item *
-
-Possibly add support for grammars. This might be much more powerful
-than regular expressions, say:
-
- { name => 'expr OP expr | expr' }
-
-or something like this.
-
-=back
-
 =head1 AUTHORS
 
 T. v.Dein <tlinden |AT| cpan.org>
 
-Per Carlson <pelle |AT| hemmop.com>
+Per Carlson <pelle |AT| cpan.org>
 
 Thanks to David Cantrell for his helpful hints.
 
