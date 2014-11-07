@@ -7,7 +7,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: 0
 dynamic_config: 1
-generated_by: 'ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.120630'
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.130880'
 license: unknown
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -21,4 +21,6 @@ requires:
   Data::Validate: 0.06
   Data::Validate::IP: 0.18
   Regexp::Common: 0
+resources:
+  repository: https://github.com/TLINDEN/Data-Validate-Struct
 version: 0.08

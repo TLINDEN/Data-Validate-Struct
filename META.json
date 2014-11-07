@@ -4,7 +4,7 @@
       "unknown"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.120630",
+   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.130880",
    "license" : [
       "unknown"
    ],
@@ -39,5 +39,10 @@
       }
    },
    "release_status" : "stable",
+   "resources" : {
+      "repository" : {
+         "url" : "https://github.com/TLINDEN/Data-Validate-Struct"
+      }
+   },
    "version" : "0.08"
 }

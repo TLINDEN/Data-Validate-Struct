@@ -18,6 +18,12 @@ WriteMakefile(
                 'Data::Validate::IP' => '0.18',
               },
 	      dist         => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-	      test         => { TESTS => 't/*.t' }
+	      test         => { TESTS => 't/*.t' },
+              'META_MERGE' => {
+                               resources => {
+                                             repository => 'https://github.com/TLINDEN/Data-Validate-Struct',
+                                            },
+                              },
+
 );
 
