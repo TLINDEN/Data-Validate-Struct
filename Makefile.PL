@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2007-2014 T. v.Dein <tom |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 
 use ExtUtils::MakeMaker;
@@ -11,6 +11,12 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
 	      NAME	   => 'Data::Validate::Struct',
 	      VERSION_FROM => 'Struct.pm',
+              ABSTRACT     => 'Validate recursive hash structures',
+              LICENSE      => 'perl',
+              AUTHOR       => [
+                'Thomas v.Dein <tom@cpan.org>',
+                'Per Carlson <pelle@cpan.org>',
+              ],
 	      clean        => { FILES => '*~ */*~' },
 	      PREREQ_PM    => { 
                 'Regexp::Common' => 0,

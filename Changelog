@@ -1,3 +1,7 @@
+NEXT
+	o Added AUTHOR, LICENSE and ABSTRACT fields to Makefile.PL
+	o Fixed 'Artistic' typo in Makefile.PL
+
 0.08
 	o applied patches by Per Carlson:
 	  - don't die on 1st error, rather collect them and
