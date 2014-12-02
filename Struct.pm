@@ -21,7 +21,7 @@ use File::stat;
 use Data::Validate qw(:math is_printable);
 use Data::Validate::IP qw(is_ipv4 is_ipv6);
 
-our $VERSION = 0.08;
+our $VERSION = 0.09;
 
 use vars qw(@ISA);
 
@@ -128,7 +128,6 @@ sub new {
   # types from here and use Data::Validate's methods as subroutine
   # checks, which we already support.
   $self->{types} = \%__ValidatorTypes;
-		    
   $self->{debug} = 0;
   $self->{errors} = [];
 
@@ -174,6 +173,9 @@ sub type {
 
 sub validate {
   my ($self, $config) = @_;
+
+  # reset errors in case it's a repeated run
+  $self->{errors} = [];
 
   $self->_traverse($self->{structure}, $config, ());
   # return TRUE if no errors
@@ -884,7 +886,7 @@ Thanks to David Cantrell for his helpful hints.
 
 =head1 VERSION
 
-0.08
+0.09
 
 =cut
 
