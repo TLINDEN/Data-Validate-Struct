@@ -395,5 +395,11 @@ $v3->type(noob => sub { return $_[0] == 42 });
 
 ok($v3->validate($cfg3), "using custom types");
 
+
+# check if errors are not cached
+my $v4 = Data::Validate::Struct->new({age => 'int'});
+ok(!$v4->validate({age => 'eight'}), "cache check first run, error");
+ok($v4->validate({age => 8}), "cache check second run, no error");
+
 done_testing();
 
