@@ -1,12 +1,13 @@
 {
-   "abstract" : "unknown",
+   "abstract" : "Validate recursive hash structures",
    "author" : [
-      "unknown"
+      "Thomas v.Dein <tom@cpan.org>",
+      "Per Carlson <pelle@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.130880",
+   "generated_by" : "ExtUtils::MakeMaker version 7.02, CPAN::Meta::Converter version 2.142690",
    "license" : [
-      "unknown"
+      "perl_5"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -44,5 +45,5 @@
          "url" : "https://github.com/TLINDEN/Data-Validate-Struct"
       }
    },
-   "version" : "0.08"
+   "version" : "0.09"
 }
