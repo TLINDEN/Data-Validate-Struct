@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2014 T. v.Dein <tlinden |AT| cpan.org>.
+# Copyright (c) 2007-2015 T. v.Dein <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -21,7 +21,7 @@ use File::stat;
 use Data::Validate qw(:math is_printable);
 use Data::Validate::IP qw(is_ipv4 is_ipv6);
 
-our $VERSION = 0.09;
+our $VERSION = 0.10;
 
 use vars qw(@ISA);
 
@@ -251,6 +251,19 @@ sub _check_type {
   # the value in $hash->{$key} (shortcut)
   my $value = $hash->{$key};
 
+  # is the value checkable?
+  unless (defined $value) {
+    if (grep { $_ eq 'optional' } @types) {
+      # do nothing
+      $self->_debug("$key is optional");
+      return;
+    }
+    else {
+      # report error
+      return "value of '$key' is undef";
+    }
+  }
+
   # the aggregated match over *all* types
   my $match = 0;
   foreach my $type (@types) {
@@ -301,7 +314,7 @@ sub _check_type {
 sub _trim {
   my @a = @_;
   foreach (@a) {
-    s/^\s+|\s+$//;
+    s/^\s+|\s+$//g;
   }
   return wantarray ? @a : $a[0];
 }
@@ -846,7 +859,7 @@ L<Data::Validate::IP> common data validation methods for IP-addresses.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2007-2014 T. v.Dein
+Copyright (c) 2007-2015 T. v.Dein
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -886,7 +899,7 @@ Thanks to David Cantrell for his helpful hints.
 
 =head1 VERSION
 
-0.09
+0.10
 
 =cut
 

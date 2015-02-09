@@ -1,6 +1,10 @@
-0.9
+0.10
+	o fixed RT#101884
+	  - _trim() only removed 1st whitespace
+	  - optional checks were ineffective if the value was undef
+0.09
 	o Added AUTHOR, LICENSE and ABSTRACT fields to Makefile.PL
-	
+
 	o Fixed 'Artistic' typo in Makefile.PL
 
 	o fixed cached errors bug - if a validator object has

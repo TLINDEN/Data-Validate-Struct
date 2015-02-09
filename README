@@ -434,7 +434,7 @@ SEE ALSO
     Data::Validate::IP common data validation methods for IP-addresses.
 
 LICENSE AND COPYRIGHT
-    Copyright (c) 2007-2014 T. v.Dein
+    Copyright (c) 2007-2015 T. v.Dein
 
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
@@ -469,5 +469,5 @@ AUTHORS
     Thanks to David Cantrell for his helpful hints.
 
 VERSION
-    0.08
+    0.10
 
