@@ -557,7 +557,7 @@ The type 'optional' can be placed anywhere in the type string.
 
 In some rare situations you might require a negative match. So
 a test shall return TRUE if a particular value does NOT match the
-given type. This might be usefull to prevent certain things.
+given type. This might be useful to prevent certain things.
 
 To achieve this, you just have to prepend one of the below mentioned
 types with the keyword B<no>.
@@ -679,7 +679,7 @@ Enables debug output which gets printed to STDERR.
 Returns an array ref with the errors found when validating the hash.
 Each error is on the format '<value> doesn't match <types> at <ref>',
 where <ref> is a comma separated tree view depicting where in the
-the error occured.
+the error occurred.
 
 =item B<errstr()>
 
