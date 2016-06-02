@@ -1,3 +1,8 @@
+0.11
+	o typos
+
+	o added cpanfile
+
 0.10
 	o fixed RT#101884
 	  - _trim() only removed 1st whitespace
