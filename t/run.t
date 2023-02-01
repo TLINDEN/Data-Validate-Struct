@@ -126,7 +126,7 @@ my $cfg =  {
 
 my $v = new_ok('Data::Validate::Struct', [ $ref ]);
 ok ($v->validate($cfg), "validate a reference against a OK config");
-
+print STDERR "\n\n\n",$v->errstr(),"\n\n\n";
 
 
 # check failure matching
@@ -400,6 +400,10 @@ ok($v3->validate($cfg3), "using custom types");
 my $v4 = Data::Validate::Struct->new({age => 'int'});
 ok(!$v4->validate({age => 'eight'}), "cache check first run, error");
 ok($v4->validate({age => 8}), "cache check second run, no error");
+
+# different references
+my $v5 = Data::Validate::Struct->new({ foo => [{bar => 'int'}]});
+ok(!$v5->validate({foo=>{bar=>10}}));
 
 done_testing();
 
