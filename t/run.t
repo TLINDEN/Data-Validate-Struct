@@ -126,7 +126,7 @@ my $cfg =  {
 
 my $v = new_ok('Data::Validate::Struct', [ $ref ]);
 ok ($v->validate($cfg), "validate a reference against a OK config");
-print STDERR "\n\n\n",$v->errstr(),"\n\n\n";
+
 
 
 # check failure matching
