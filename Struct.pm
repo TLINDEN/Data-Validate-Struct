@@ -195,7 +195,14 @@ sub _traverse {
   my ($self, $reference, $hash, @tree) = @_;
 
   foreach my $key (keys %{$reference}) {
-    if (ref($reference->{$key}) eq 'ARRAY') {
+    my $reference_ref = ref $reference->{$key};
+    my $hash_ref = ref $hash->{$key};
+    if ($reference_ref =~ /^ARRAY|HASH$/ && $reference_ref ne $hash_ref)
+    {
+      my $err = sprintf("Different structure types %s vs %s", $reference_ref, $hash_ref);
+      push @{$self->{errors}}, sprintf(q{%s at '%s'}, $err, join(' => ', @tree));
+    }
+    elsif ($reference_ref eq 'ARRAY') {
       # just use the 1st one, more elements in array are expected to be the same
       foreach my $item (@{$hash->{$key}}) {
         if (ref($item) eq q(HASH)) {
@@ -212,10 +219,10 @@ sub _traverse {
         }
       }
     }
-    elsif (ref($reference->{$key}) eq 'HASH') {
+    elsif ($reference_ref eq 'HASH') {
       $self->_traverse($reference->{$key}, $hash->{$key}, @tree, $key);
     }
-    elsif (ref($reference->{$key}) eq '') {
+    elsif ($reference_ref eq '') {
       $self->_debug("Checking $key at " . join(', ', @tree));
       if (my $err = $self->_check_type($key, $reference, $hash)) {
         push @{$self->{errors}}, sprintf(q{%s at '%s'}, $err, join(' => ', @tree));
