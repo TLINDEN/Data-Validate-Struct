@@ -409,14 +409,14 @@ ok($v4->validate({age => 8}), "cache check second run, no error");
 
 # optional array, see:
 # https://github.com/TLINDEN/Data-Validate-Struct/issues/7
-my $ref4 = {
+my $ref5 = {
             routers => [ {
                           stubs => [ {
                                       network => 'ipv4',
                                      }, {} ],
                          }, {}, ],
            };
-my $test4 = {
+my $test5 = {
                'routers' => [
                              {
                               'stubs' => [
@@ -431,6 +431,11 @@ my $test4 = {
                              },
                             ],
               };
-my $v4 = Data::Validate::Struct->new($ref4);
-ok($v4->validate($test4), "check optional " . $Data::Validate::Struct::VERSION);
+my $v5 = Data::Validate::Struct->new($ref5);
+ok($v5->validate($test5), "check optional " . $Data::Validate::Struct::VERSION);
+
+# different references
+my $v6 = Data::Validate::Struct->new({ foo => [{bar => 'int'}]});
+ok(!$v6->validate({foo=>{bar=>10}}));
+
 done_testing();

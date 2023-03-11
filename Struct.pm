@@ -196,20 +196,29 @@ sub _traverse {
 
   foreach my $key (keys %{$reference}) {
     if (ref($reference->{$key}) eq 'ARRAY') {
-      # just use the 1st one, more elements in array are expected to be the same
-      foreach my $item (@{$hash->{$key}}) {
-        if (ref($item) eq q(HASH)) {
-          # traverse the structure pushing our key to the @tree
-          $self->_traverse($reference->{$key}->[0], $item, @tree, $key);
+
+      # either it is undefined (optional values)
+      # or it should be an array, so we can derreference it.
+      if (!defined($hash->{$key}) || ref($hash->{$key}) eq "ARRAY") {
+        
+        # just use the 1st one, more elements in array are expected to be the same
+        foreach my $item (@{$hash->{$key}}) {
+          if (ref($item) eq q(HASH)) {
+            # traverse the structure pushing our key to the @tree
+            $self->_traverse($reference->{$key}->[0], $item, @tree, $key);
+          }
+          else {
+            # a value, this is tricky
+            $self->_traverse(
+              { item => $reference->{$key}->[0] },
+              { item => $item },
+              @tree, $key
+            );
+          }
         }
-        else {
-          # a value, this is tricky
-          $self->_traverse(
-            { item => $reference->{$key}->[0] },
-            { item => $item },
-            @tree, $key
-          );
-        }
+      }
+      else {
+        push @{$self->{errors}}, "$key is not an array";
       }
     }
     elsif (ref($reference->{$key}) eq 'HASH') {
