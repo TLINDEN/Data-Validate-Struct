@@ -1,5 +1,6 @@
 0.13
-    o rework commit 495fcbc
+	o rework commit 495fcbc: fix bug#14: do not die when
+	  array ref doesn't match reference, only report.
 
 0.12
 	o revert commit 495fcbc, see #7: breaks backwards

@@ -21,7 +21,7 @@ use File::stat;
 use Data::Validate qw(:math is_printable);
 use Data::Validate::IP qw(is_ipv4 is_ipv6);
 
-our $VERSION = 0.12;
+our $VERSION = 0.13;
 
 use vars qw(@ISA);
 
