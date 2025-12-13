@@ -2,6 +2,9 @@
 
 # Data::Validate::Struct - Validate recursive Hash Structures
 
+> [!CAUTION]
+> This software is now being maintained on [Codeberg](https://codeberg.org/scip/Data-Validate-Struct/).
+
 # SYNOPSIS
   
      use Data::Validate::Struct;
