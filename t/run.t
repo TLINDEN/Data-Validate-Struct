@@ -408,7 +408,7 @@ ok(!$v4->validate({age => 'eight'}), "cache check first run, error");
 ok($v4->validate({age => 8}), "cache check second run, no error");
 
 # optional array, see:
-# https://github.com/TLINDEN/Data-Validate-Struct/issues/7
+# https://codeberg.org/scip/Data-Validate-Struct/issues/7
 my $ref5 = {
             routers => [ {
                           stubs => [ {

@@ -27,7 +27,7 @@ WriteMakefile(
               test         => { TESTS => 't/*.t' },
               'META_MERGE' => {
                                resources => {
-                                             repository => 'https://github.com/TLINDEN/Data-Validate-Struct',
+                                             repository => 'https://codeberg.org/scip/Data-Validate-Struct',
                                             },
                               },
 

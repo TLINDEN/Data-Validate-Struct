@@ -23,5 +23,5 @@ requires:
   Data::Validate::IP: '0'
   Regexp::Common: '0'
 resources:
-  repository: https://github.com/TLINDEN/Data-Validate-Struct
+  repository: https://codeberg.org/scip/Data-Validate-Struct
 version: 0.12
